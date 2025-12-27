@@ -1,12 +1,13 @@
-// Minimal SW for PWA install + offline shell caching.
-// NOTE: "True" push notifications require Push subscription + server trigger.
-// This SW is still useful for installability and basic caching.
+// Minimal Service Worker for installability + offline shell caching.
+// IMPORTANT: "True" push notifications in background require push subscription + server trigger.
 
-const CACHE = "fitcheck-v1";
+const CACHE = "fitcheck-v4";
 const ASSETS = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
+  "./icon-192.png",
+  "./icon-512.png"
 ];
 
 self.addEventListener("install", (event) => {
@@ -28,13 +29,16 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
 
   event.respondWith(
-    caches.match(req).then((cached) => cached || fetch(req).then((res) => {
-      // cache same-origin navigations + static
-      const copy = res.clone();
-      if (new URL(req.url).origin === self.location.origin) {
-        caches.open(CACHE).then((c) => c.put(req, copy));
-      }
-      return res;
-    }).catch(() => cached))
+    caches.match(req).then((cached) => {
+      const fetcher = fetch(req).then((res) => {
+        const copy = res.clone();
+        if (new URL(req.url).origin === self.location.origin) {
+          caches.open(CACHE).then((c) => c.put(req, copy));
+        }
+        return res;
+      }).catch(() => cached);
+
+      return cached || fetcher;
+    })
   );
 });
